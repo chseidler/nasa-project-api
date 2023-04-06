@@ -14,6 +14,10 @@ const newLaunch = {
   success: true,
 };
 
+async function loadLaunchData() {
+  // TODO
+}
+
 async function existsLaunchWithId(launchId) {
   const retorno = await launchesDatabase.findOne({
     flightNumber: launchId,
@@ -86,4 +90,5 @@ module.exports = {
   getAllLaunches,
   scheduleNewLaunch,
   abortLaunchById,
+  loadLaunchData,
 };
