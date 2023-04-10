@@ -18,7 +18,20 @@ const newLaunch = {
 
 const SPACEX_API_URL = 'https://api.spacexdata.com/v4/launches/query';
 
-async function loadLaunchData() {
+async function findLaunch(filter) {
+  const retorno = await launchesDatabase.findOne(filter);
+  return retorno;
+}
+
+async function saveLaunch(launch) {
+  await launchesDatabase.findOneAndUpdate({
+    flightNumber: launch.flightNumber,
+  }, launch, {
+    upsert: true,
+  });
+}
+
+async function populateLaunches() {
   const response = await axios.post(SPACEX_API_URL, {
     query: {},
     options: {
@@ -40,8 +53,12 @@ async function loadLaunchData() {
     },
   });
 
+  if (response.status !== 200) {
+    throw new Error('Launch data download error');
+  }
+
   const launchDocs = response.data.docs;
-  launchDocs.forEach((launchDoc) => {
+  launchDocs.forEach(async (launchDoc) => {
     const { payloads } = launchDoc;
     const customers = payloads.flatMap((payload) => payload.customers);
 
@@ -55,12 +72,24 @@ async function loadLaunchData() {
       customers,
     };
 
-    console.log(launch);
+    await saveLaunch(launch);
   });
 }
 
+async function loadLaunchData() {
+  const firstLaunch = await findLaunch({
+    flightNumber: 1,
+    rocket: 'Falcon 1',
+    mission: 'FalconSat',
+  });
+
+  if (!firstLaunch) {
+    await populateLaunches();
+  }
+}
+
 async function existsLaunchWithId(launchId) {
-  const retorno = await launchesDatabase.findOne({
+  const retorno = await findLaunch({
     flightNumber: launchId,
   });
 
@@ -84,25 +113,17 @@ async function getAllLaunches() {
   return retorno;
 }
 
-async function saveLaunch(launch) {
+saveLaunch(newLaunch);
+
+async function scheduleNewLaunch(launchData) {
   const planet = await planets.findOne({
-    keplerName: launch.target,
+    keplerName: launchData.target,
   });
 
   if (!planet) {
     throw new Error('No matching planet found');
   }
 
-  await launchesDatabase.findOneAndUpdate({
-    flightNumber: launch.flightNumber,
-  }, launch, {
-    upsert: true,
-  });
-}
-
-saveLaunch(newLaunch);
-
-async function scheduleNewLaunch(launchData) {
   const newFlightNumber = await getLatestFlightNumber() + 1;
 
   const newLaunchSet = Object.assign(launchData, {
