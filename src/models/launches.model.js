@@ -106,10 +106,11 @@ async function getLatestFlightNumber() {
   return latestLaunch.flightNumber;
 }
 
-async function getAllLaunches() {
-  const retorno = await launchesDatabase.find({}, {
-    _id: 0, __v: 0,
-  });
+async function getAllLaunches(skip, limit) {
+  const retorno = await launchesDatabase
+    .find({}, { _id: 0, __v: 0 })
+    .skip(skip)
+    .limit(limit);
   return retorno;
 }
 
